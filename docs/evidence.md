@@ -521,13 +521,74 @@ $ curl -sS $API/tasks | jq 'length,[.[].id]'
 - [x] Q3 answered in README
 
 ## Task 6 — Access control for Argo CD users
-- [ ] `argocd account list`  (admin, reviewer)
-- [ ] `argocd --argocd-context reviewer app list`  (only the two tasktracker apps)
-- [ ] three `can-i` results: `get applications` → yes, `sync applications` → no, `get logs` → no
-- [ ] `argocd --argocd-context reviewer proj get platform`  (denied)
-- [ ] after enabling the logs rule and re-applying bootstrap: `get logs` → yes
-- [ ] **screenshot**: reviewer session showing Pod logs → `screenshots/task6-reviewer-pod-logs.png`
-- [ ] Q4 answered in README
+
+### Setup
+
+```
+$ argocd login localhost:8082 --username admin --insecure
+$ argocd account update-password --account reviewer --current-password '<admin>' --new-password '<reviewer>'
+$ argocd login localhost:8082 --name reviewer --username reviewer --password '<reviewer>' --insecure
+```
+
+A separate context named `reviewer` lets every subsequent command run under
+the reviewer account without touching admin session.
+
+### Step 2 — reviewer sees only what the project allows
+
+```
+$ argocd context                                      ← shows '*' on reviewer
+$ argocd app list                                     ← two apps, both in the dso202 project
+argocd/tasktracker-dev      …  dso202-dev      dso202   Synced   Healthy  Auto-Prune  main
+argocd/tasktracker-staging  …  dso202-staging  dso202   Synced   Healthy  Manual      v1.0.0
+```
+
+No `platform-*`, no `sealed-secrets`, no `root` — reviewer has no rule
+that matches those projects, so they are invisible.
+
+### Step 3 — the three `can-i` gates
+
+| Check | Result | Policy line |
+|---|---|---|
+| `argocd account can-i get applications dso202/tasktracker-dev` | **yes** | `p, reviewer, applications, get, dso202/*, allow` |
+| `argocd account can-i sync applications dso202/tasktracker-dev` | **no**  | no matching allow; default deny |
+| `argocd account can-i get logs dso202/tasktracker-dev`          | **no → yes** after step 4 | `p, reviewer, logs, get, dso202/*, allow` (previously commented out) |
+
+Real failing calls, not just the gate:
+
+```
+$ argocd app sync tasktracker-dev
+rpc error: code = PermissionDenied desc = permission denied:
+  applications, sync, dso202/tasktracker-dev, sub: reviewer, iat: 2026-11-24T18:24:16Z
+
+$ argocd proj get platform
+rpc error: code = PermissionDenied desc = permission denied:
+  projects, get, platform, sub: reviewer, iat: 2026-11-24T18:24:16Z
+```
+
+### Step 4 — enable the logs rule and re-apply
+
+Uncommented one line in `bootstrap/argocd/argocd-rbac-cm-patch.yaml`:
+`p, reviewer, logs, get, dso202/*, allow` — then re-applied the bootstrap
+server-side. After the configmap reconciled, the same gate now returns:
+
+```
+$ argocd account can-i get logs dso202/tasktracker-dev
+yes
+```
+
+Since Argo CD 3.0, `logs` is a separate RBAC resource and is not implied
+by read access to the application; the rule is necessary for the UI's
+LOGS tab to appear for reviewer.
+
+- [x] `argocd account list`  (admin, reviewer)
+- [x] `argocd --argocd-context reviewer app list`  (only the two tasktracker apps)
+- [x] three `can-i` results: `get applications` → yes, `sync applications` → no, `get logs` → no
+- [x] `argocd --argocd-context reviewer proj get platform`  (denied)
+- [x] after enabling the logs rule and re-applying bootstrap: `get logs` → yes
+- [x] **screenshot**: reviewer session showing log access → `screenshots/task6-reviewer-pod-logs.png`
+- [x] Q4 answered in README
+
+![Reviewer terminal transcript — context '*' on reviewer, two-app scope, can-i get logs → yes after the step-4 RBAC patch, sync and proj get platform both PermissionDenied](screenshots/task6-reviewer-pod-logs.png)
 
 ## Task 7 — A release, a faulty release, and recovery
 - [ ] pull request list (titles and numbers, or a screenshot)
