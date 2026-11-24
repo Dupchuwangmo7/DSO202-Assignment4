@@ -111,20 +111,86 @@ dso202-gitops-control-plane 0.0.0.0:30080->30080/tcp, 127.0.0.1:59372->6443/tcp
 - [x] `docker ps --filter name=dso202-gitops --format '{{.Names}} {{.Ports}}'` showing 30080
 
 ## Task 2 — Install Argo CD declaratively
-- [ ] `kubectl kustomize bootstrap/argocd | grep -E '^kind: (Deployment|StatefulSet)$' | sort | uniq -c`  (expect 6 Deployments, 1 StatefulSet)
-- [ ] `kubectl kustomize bootstrap/argocd | grep 'image:' | sort -u`  (dex, redis, argocd v3.5.6; none from Docker Hub)
-- [ ] `kubectl get pods -n argocd`  (seven Running)
-- [ ] `kubectl get crd | grep argoproj.io`  (applications, appprojects, applicationsets)
-- [ ] `kubectl get configmap argocd-cm -n argocd -o yaml | grep -E 'timeout.reconciliation|accounts.reviewer'`
-- [ ] `argocd version`
-- [ ] **screenshot**: Argo CD UI after sign-in
+
+### Rendered workload counts (6 Deployments, 1 StatefulSet)
+
+```
+$ kubectl kustomize bootstrap/argocd | grep -E '^kind: (Deployment|StatefulSet)$' | sort | uniq -c
+   6 kind: Deployment
+   1 kind: StatefulSet
+```
+
+### Images — Argo CD pinned to v3.5.6, none from Docker Hub
+
+```
+$ kubectl kustomize bootstrap/argocd | grep 'image:' | sort -u
+        image: ghcr.io/dexidp/dex:v2.45.1
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: quay.io/argoproj/argocd:v3.5.6
+```
+
+### Seven Pods Running after `kubectl apply -k bootstrap/argocd --server-side --force-conflicts`
+
+```
+$ kubectl get pods -n argocd
+NAME                                                READY   STATUS    RESTARTS   AGE
+argocd-application-controller-0                     1/1     Running   0          4m44s
+argocd-applicationset-controller-58bb5c7479-vk8b9   1/1     Running   0          4m44s
+argocd-dex-server-dd6b85d9c-frtkx                   1/1     Running   0          4m44s
+argocd-notifications-controller-6b85c65458-wnrv7    1/1     Running   0          4m44s
+argocd-redis-869b85489d-m6k6h                       1/1     Running   0          4m44s
+argocd-repo-server-5bf66565cd-ws6sw                 1/1     Running   0          4m44s
+argocd-server-7474bb8f76-xxsks                      1/1     Running   0          4m44s
+```
+
+### CRDs installed
+
+```
+$ kubectl get crd | grep argoproj.io
+applications.argoproj.io      2026-11-24T17:28:47Z
+applicationsets.argoproj.io   2026-11-24T17:28:48Z
+appprojects.argoproj.io       2026-11-24T17:28:48Z
+```
+
+### ConfigMap patches took effect
+
+```
+$ kubectl get configmap argocd-cm -n argocd -o yaml | grep -E 'timeout.reconciliation|accounts.reviewer'
+  accounts.reviewer: login
+  timeout.reconciliation: 60s
+  timeout.reconciliation.jitter: 10s
+```
+
+### `argocd version` — CLI logged in, server at v3.5.6
+
+```
+$ argocd login localhost:8080 --username admin --insecure
+'admin:login' logged in successfully
+
+$ argocd version
+argocd: v3.6.2
+  …
+argocd-server: v3.5.6
+  BuildDate: 2026-10-20T18:33:20Z
+```
+
+The CLI is v3.6.2 (Homebrew; pinned binary download failed earlier) but
+the **server itself is v3.5.6** as the brief pins.
+
+- [x] `kubectl kustomize bootstrap/argocd | grep -E '^kind: (Deployment|StatefulSet)$' | sort | uniq -c`  (expect 6 Deployments, 1 StatefulSet)
+- [x] `kubectl kustomize bootstrap/argocd | grep 'image:' | sort -u`  (dex, redis, argocd v3.5.6; none from Docker Hub)
+- [x] `kubectl get pods -n argocd`  (seven Running)
+- [x] `kubectl get crd | grep argoproj.io`  (applications, appprojects, applicationsets)
+- [x] `kubectl get configmap argocd-cm -n argocd -o yaml | grep -E 'timeout.reconciliation|accounts.reviewer'`
+- [x] `argocd version`
+- [ ] **screenshot**: Argo CD UI after sign-in → `screenshots/task2-argocd-ui-signed-in.png`
 
 ## Task 3 — AppProjects and the root Application
 - [ ] `kubectl get appproject,application -n argocd`
 - [ ] `argocd app get root`  (Synced + Healthy)
 - [ ] `argocd proj get dso202`
 - [ ] final whitelist, with a comment for any addition
-- [ ] **screenshot**: root Application resource tree
+- [ ] **screenshot**: root Application resource tree → `screenshots/task3-root-app-tree.png`
 - [ ] Q1 answered in README
 
 ## Task 4 — Platform layer and Sealed Secrets
@@ -145,7 +211,7 @@ dso202-gitops-control-plane 0.0.0.0:30080->30080/tcp, 127.0.0.1:59372->6443/tcp
 - [ ] `kubectl logs job/tasktracker-smoke-test -n dso202-dev`
 - [ ] `argocd app get tasktracker-dev` and `… tasktracker-staging`
 - [ ] CRUD cycle in dev (see README §5 — port-forward the backend)
-- [ ] **screenshot**: `tasktracker-dev` resource tree
+- [ ] **screenshot**: `tasktracker-dev` resource tree → `screenshots/task5-tasktracker-dev-tree.png`
 - [ ] root Application state BEFORE and AFTER the first staging sync
 - [ ] Q3 answered in README
 
@@ -155,7 +221,7 @@ dso202-gitops-control-plane 0.0.0.0:30080->30080/tcp, 127.0.0.1:59372->6443/tcp
 - [ ] three `can-i` results: `get applications` → yes, `sync applications` → no, `get logs` → no
 - [ ] `argocd --argocd-context reviewer proj get platform`  (denied)
 - [ ] after enabling the logs rule and re-applying bootstrap: `get logs` → yes
-- [ ] **screenshot**: reviewer session showing Pod logs
+- [ ] **screenshot**: reviewer session showing Pod logs → `screenshots/task6-reviewer-pod-logs.png`
 - [ ] Q4 answered in README
 
 ## Task 7 — A release, a faulty release, and recovery
