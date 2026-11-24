@@ -40,7 +40,7 @@ backend:
   # Chart change: none — contract C2 passes .Values.backend.extraEnv straight
   # through.
   extraEnv:
-    APP_RELEASE: "v1.1.0"
+    APP_RELEASE: "v1.2.0"
 
 database:
   storageSize: 1Gi
