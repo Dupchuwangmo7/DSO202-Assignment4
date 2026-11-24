@@ -19,7 +19,7 @@ spec:
   description: Task Tracker workloads for the dev and staging environments
 
   sourceRepos:
-    - https://github.com/Dupchuwangmo7/dso202-gitops.git
+    - https://github.com/Dupchuwangmo7/DSO202-Assignment4.git
 
   destinations:
     - server: https://kubernetes.default.svc

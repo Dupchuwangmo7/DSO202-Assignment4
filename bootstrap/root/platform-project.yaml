@@ -25,7 +25,7 @@ spec:
   # Repositories this project may read from. The repository URL must be written
   # identically here and in every Application that uses it.
   sourceRepos:
-    - https://github.com/Dupchuwangmo7/dso202-gitops.git
+    - https://github.com/Dupchuwangmo7/DSO202-Assignment4.git
     - https://bitnami.github.io/sealed-secrets
 
   # Clusters and namespaces this project may deploy into.

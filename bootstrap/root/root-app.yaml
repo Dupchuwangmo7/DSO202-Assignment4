@@ -21,7 +21,7 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: https://github.com/Dupchuwangmo7/dso202-gitops.git
+    repoURL: https://github.com/Dupchuwangmo7/DSO202-Assignment4.git
     # The root follows the main branch. In a team, every file under argocd/
     # would reach main only through a reviewed pull request, because a merge
     # here creates or deletes Applications.

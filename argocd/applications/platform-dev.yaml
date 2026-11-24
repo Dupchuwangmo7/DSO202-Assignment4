@@ -23,7 +23,7 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: https://github.com/Dupchuwangmo7/dso202-gitops.git
+    repoURL: https://github.com/Dupchuwangmo7/DSO202-Assignment4.git
     targetRevision: main
     # A plain directory of manifests: no chart, no templating.
     path: platform/dev
