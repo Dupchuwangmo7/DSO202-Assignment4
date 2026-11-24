@@ -11,7 +11,7 @@ images:
   frontend:
     tag: "1.0"
   backend:
-    tag: "1.2"
+    tag: "1.0"
   database:
     tag: "1.0"
 
