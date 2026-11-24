@@ -271,16 +271,125 @@ additions over the brief's minimum.
 ![Argo CD root Application tree — Synced, auto-sync enabled, connected to dso202 AppProject and the five child Applications](screenshots/task3-root-app-tree.png)
 
 ## Task 4 — Platform layer and Sealed Secrets
-- [ ] `kubectl get applications -n argocd`, `kubectl get pods -n sealed-secrets`, `kubectl get crd sealedsecrets.bitnami.com`
-- [ ] `ls -l ../dso202-keys/`  (existence and permissions only — never contents)
-- [ ] `kubectl get namespaces | grep dso202`
-- [ ] `kubectl get sealedsecret -n dso202-dev`
-- [ ] `kubectl describe secret tasktracker-credentials -n dso202-dev`  (key names and sizes only)
-- [ ] `kubectl get resourcequota,limitrange -n dso202-dev`
-- [ ] history search per credential value: `git log -p --all -S'<value>' | head`  (must print nothing; record which KEYS were tested, never the values)
-- [ ] `git status --short --ignored`
-- [ ] both `platform-*` Applications Synced + Healthy
-- [ ] Q2 answered in README
+
+### Sealing key backup — taken BEFORE anything was sealed
+
+```
+$ ls -l ../dso202-keys/
+total 16
+-rw-------@ 1 dupchuuw  staff  7087 Nov 24 23:55 sealing-key.backup.yaml
+```
+
+Directory mode `0700`, file mode `0600`, owner-only. Contents are **not**
+printed here (the key is the single point of failure for every
+SealedSecret in Git).
+
+### Applications, controller, CRD
+
+```
+$ kubectl get application -n argocd
+NAME                  SYNC      HEALTH
+platform-dev          Synced    Healthy
+platform-staging      Synced    Healthy
+root                  Synced    Healthy
+sealed-secrets        Synced    Healthy
+tasktracker-dev       Synced    Healthy
+tasktracker-staging   Unknown   Healthy        ← manual by design, Task 5
+
+$ kubectl get pods -n sealed-secrets
+NAME                                        READY   STATUS    RESTARTS   AGE
+sealed-secrets-controller-8b5ffdf69-x2svp   1/1     Running   0          30m
+
+$ kubectl get crd sealedsecrets.bitnami.com
+NAME                        CREATED AT
+sealedsecrets.bitnami.com   2026-11-24T17:42:47Z
+```
+
+### Namespaces, SealedSecret, decrypted Secret (keys and byte counts only)
+
+```
+$ kubectl get namespaces | grep dso202
+dso202-dev       Active   30m
+dso202-staging   Active   30m
+
+$ kubectl get sealedsecret -n dso202-dev
+NAME                      STATUS   SYNCED   AGE
+tasktracker-credentials            True     79s
+
+$ kubectl describe secret tasktracker-credentials -n dso202-dev
+Name:         tasktracker-credentials
+Namespace:    dso202-dev
+Type:         Opaque
+Data
+====
+DB_PASSWORD:        16 bytes
+DB_USER:            11 bytes
+POSTGRES_PASSWORD:  16 bytes
+POSTGRES_USER:      11 bytes
+```
+
+(Staging is identical shape; different passwords. See Q2 for why
+strict scope matters — `sealed-secrets` sealed each file with its own
+name and namespace embedded, so the dev and staging files cannot be
+swapped to decrypt somewhere they were not meant for.)
+
+### Quota and LimitRange active in dev
+
+```
+$ kubectl get resourcequota,limitrange -n dso202-dev
+NAME                         REQUEST                                                            LIMIT
+resourcequota/dso202-quota   pods: 3/8, requests.cpu: 125m/750m, requests.memory: 224Mi/768Mi   limits.cpu: 600m/1500m, limits.memory: 640Mi/1536Mi
+
+NAME                           CREATED AT
+limitrange/dso202-limitrange   2026-11-24T17:43:02Z
+```
+
+### History leak audit — four credential values tested, zero hits
+
+```
+$ git log --all -p -S'<DEV POSTGRES_PASSWORD>'  | wc -l
+0
+$ git log --all -p -S'<DEV DB_PASSWORD>'        | wc -l
+0
+$ git log --all -p -S'<STAGING POSTGRES_PASSWORD>' | wc -l
+0
+$ git log --all -p -S'<STAGING DB_PASSWORD>'    | wc -l
+0
+```
+
+Tested keys (values redacted and not printed anywhere in this
+repository or its history):
+
+| Env | Secret key | `git log -S` hits |
+|---|---|---|
+| dev | `POSTGRES_PASSWORD` | 0 |
+| dev | `DB_PASSWORD` | 0 |
+| staging | `POSTGRES_PASSWORD` | 0 |
+| staging | `DB_PASSWORD` | 0 |
+
+Values were read from the live `tasktracker-credentials` Secret in each
+namespace into shell variables, searched, and unset. They were never
+echoed, logged or written to a file.
+
+### Working tree is clean (no plaintext, no key material)
+
+```
+$ git status --short --ignored
+```
+(empty — `secrets-plain/` deleted, `.gitignore` catches `*.backup.yaml`
+and `secrets-plain/` by pattern as a defense in depth even though the
+key backup lives outside the repo)
+
+- [x] `kubectl get applications -n argocd`, `kubectl get pods -n sealed-secrets`, `kubectl get crd sealedsecrets.bitnami.com`
+- [x] `ls -l ../dso202-keys/`  (existence and permissions only — never contents)
+- [x] `kubectl get namespaces | grep dso202`
+- [x] `kubectl get sealedsecret -n dso202-dev`
+- [x] `kubectl describe secret tasktracker-credentials -n dso202-dev`  (key names and sizes only)
+- [x] `kubectl get resourcequota,limitrange -n dso202-dev`
+- [x] history search per credential value: `git log -p --all -S'<value>' | head`  (zero hits for all four)
+- [x] `git status --short --ignored`
+- [x] both `platform-*` Applications Synced + Healthy
+- [x] Q2 answered in README
 
 ## Task 5 — Deliver the workloads
 - [ ] `kubectl get applications -n argocd`  (all Synced + Healthy)
