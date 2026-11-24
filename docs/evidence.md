@@ -183,7 +183,9 @@ the **server itself is v3.5.6** as the brief pins.
 - [x] `kubectl get crd | grep argoproj.io`  (applications, appprojects, applicationsets)
 - [x] `kubectl get configmap argocd-cm -n argocd -o yaml | grep -E 'timeout.reconciliation|accounts.reviewer'`
 - [x] `argocd version`
-- [ ] **screenshot**: Argo CD UI after sign-in → `screenshots/task2-argocd-ui-signed-in.png`
+- [x] **screenshot**: Argo CD UI after sign-in → `screenshots/task2-argocd-ui-signed-in.png`
+
+![Argo CD UI signed in as admin, empty Applications list, server v3.5.6 visible](screenshots/task2-argocd-ui-signed-in.png)
 
 ## Task 3 — AppProjects and the root Application
 - [ ] `kubectl get appproject,application -n argocd`
