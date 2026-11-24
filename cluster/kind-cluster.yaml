@@ -1,0 +1,17 @@
+# =============================================================================
+# File       : cluster/kind-cluster.yaml
+# Assignment : DSO202 Assignment 4
+# Descriptor : Practical 1 - local cluster
+# Purpose    : The kind cluster for this assignment. Host port 30080 is mapped
+#              to the dev frontend NodePort. Staging's NodePort (30081) is
+#              deliberately NOT mapped: section 6.3 requires it to be reached
+#              with kubectl port-forward.
+# =============================================================================
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
