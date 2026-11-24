@@ -1,0 +1,39 @@
+# =============================================================================
+# File       : environments/dev/values.yaml
+# Assignment : DSO202 Assignment 4
+# Descriptor : Unit IV 4.3.1 - Application sources; Unit III 3.2 - Helm values
+# Purpose    : Everything that differs from the chart defaults in dev.
+#              Dev follows the branch main: every merge is deployed.
+# =============================================================================
+environment: dev
+
+images:
+  frontend:
+    tag: "1.0"
+  backend:
+    tag: "1.0"
+  database:
+    tag: "1.0"
+
+# Created in this namespace by the Sealed Secrets controller from
+# platform/dev/tasktracker-credentials.sealed.yaml
+existingSecret: tasktracker-credentials
+
+frontend:
+  replicaCount: 1
+  service:
+    type: NodePort
+    port: 8080
+    # Mapped to host port 30080 by cluster/kind-cluster.yaml
+    nodePort: 30080
+  # The browser calls this address directly (nginx does not proxy /api).
+  # See README, "Browser access": with no ingress controller the backend has
+  # no browser-reachable address, so API calls from the page require a
+  # port-forward on the matching port.
+  backendUrl: "http://localhost:8080"
+
+backend:
+  replicaCount: 1
+
+database:
+  storageSize: 1Gi
