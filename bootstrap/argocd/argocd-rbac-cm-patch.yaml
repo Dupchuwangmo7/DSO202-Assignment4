@@ -20,7 +20,8 @@ data:
     p, reviewer, applications, get, dso202/*, allow
     p, reviewer, projects, get, dso202, allow
 
-    # Task 6, step 4 adds the line below. Until it is present, container logs
-    # are hidden from this account: since Argo CD 3.0, logs are a separate RBAC
-    # resource and are no longer implied by read access to the application.
-    # p, reviewer, logs, get, dso202/*, allow
+    # Task 6, step 4: since Argo CD 3.0, logs are a separate RBAC resource and
+    # are no longer implied by read access to the application. Enabling the
+    # rule below lets reviewer open container logs through the UI for every
+    # application in the dso202 project; it still grants nothing beyond that.
+    p, reviewer, logs, get, dso202/*, allow
