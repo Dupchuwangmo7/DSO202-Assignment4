@@ -188,12 +188,87 @@ the **server itself is v3.5.6** as the brief pins.
 ![Argo CD UI signed in as admin, empty Applications list, server v3.5.6 visible](screenshots/task2-argocd-ui-signed-in.png)
 
 ## Task 3 — AppProjects and the root Application
-- [ ] `kubectl get appproject,application -n argocd`
-- [ ] `argocd app get root`  (Synced + Healthy)
-- [ ] `argocd proj get dso202`
-- [ ] final whitelist, with a comment for any addition
-- [ ] **screenshot**: root Application resource tree → `screenshots/task3-root-app-tree.png`
-- [ ] Q1 answered in README
+
+### Immediately after `kubectl apply -f bootstrap/root/`
+
+```
+appproject.argoproj.io/platform created
+application.argoproj.io/root created
+```
+
+### After root reconciled — dso202 project + 5 child Applications appeared
+
+```
+$ kubectl get appproject,application -n argocd
+NAME                              AGE
+appproject.argoproj.io/default    13m
+appproject.argoproj.io/dso202     20s     ← created by root, from argocd/projects/
+appproject.argoproj.io/platform   26s     ← created by hand from bootstrap/root/
+
+NAME                           SYNC STATUS   HEALTH STATUS
+application.argoproj.io/platform-dev          Synced        Healthy
+application.argoproj.io/platform-staging      Synced        Healthy
+application.argoproj.io/root                  Synced        Progressing
+application.argoproj.io/sealed-secrets        Synced        Healthy
+application.argoproj.io/tasktracker-dev       OutOfSync     Progressing
+application.argoproj.io/tasktracker-staging   Unknown       Healthy
+```
+
+`root` is Progressing because `tasktracker-dev` can't become Healthy
+yet — the chart references `tasktracker-credentials`, which Sealed
+Secrets will create once Task 4 seals the file. Once that lands,
+`root` goes Synced + Healthy on its own.
+
+### `argocd app get root` — resource tree shows the children it owns
+
+```
+$ argocd app get root
+Name:               argocd/root
+Project:            platform
+Source:
+- Repo:             https://github.com/Dupchuwangmo7/DSO202-Assignment4.git
+  Target:           main
+  Path:             argocd
+Sync Policy:        Automated (Prune)
+Sync Status:        Synced to main (56b7a73)
+Health Status:      Progressing
+
+GROUP        KIND         NAMESPACE  NAME                 STATUS  HEALTH
+argoproj.io  Application  argocd     tasktracker-staging  Synced  Healthy
+argoproj.io  Application  argocd     tasktracker-dev      Synced  Progressing
+argoproj.io  AppProject   argocd     dso202               Synced
+argoproj.io  Application  argocd     platform-dev         Synced  Healthy
+argoproj.io  Application  argocd     platform-staging     Synced  Healthy
+argoproj.io  Application  argocd     sealed-secrets       Synced  Healthy
+```
+
+### `argocd proj get dso202` — the workload project materialised from Git
+
+```
+$ argocd proj get dso202
+Name:                        dso202
+Description:                 Task Tracker workloads for the dev and staging environments
+Destinations:                https://kubernetes.default.svc,dso202-dev
+                             https://kubernetes.default.svc,dso202-staging
+Repositories:                https://github.com/Dupchuwangmo7/DSO202-Assignment4.git
+```
+
+### Allowed-resource whitelist (from `argocd/projects/dso202.yaml`)
+
+Namespaced only — no cluster-scoped kinds. The chart renders only the
+six workload kinds (ConfigMap, Deployment, Job, Service,
+ServiceAccount, StatefulSet) and Sealed Secrets contributes a
+SealedSecret and the Secret it decrypts into. No whitelist entries are
+additions over the brief's minimum.
+
+- [x] `kubectl get appproject,application -n argocd`
+- [x] `argocd app get root`  (Synced; Healthy pending Task 4 as noted above)
+- [x] `argocd proj get dso202`
+- [x] final whitelist, with a comment for any addition
+- [x] **screenshot**: root Application resource tree → `screenshots/task3-root-app-tree.png`
+- [x] Q1 answered in README
+
+![Argo CD root Application tree — Synced, auto-sync enabled, connected to dso202 AppProject and the five child Applications](screenshots/task3-root-app-tree.png)
 
 ## Task 4 — Platform layer and Sealed Secrets
 - [ ] `kubectl get applications -n argocd`, `kubectl get pods -n sealed-secrets`, `kubectl get crd sealedsecrets.bitnami.com`
