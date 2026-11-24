@@ -6,13 +6,109 @@ output. Screenshots are noted where the brief requires them.
 > Status: skeleton. Each section below is filled from a real run.
 
 ## Task 1 — Repository, chart contract and cluster
-- [ ] §3.2 tool check output
-- [ ] chart contract table (in `README.md` §4) — one line per requirement
-- [ ] `helm lint charts/tasktracker -f environments/dev/values.yaml`
-- [ ] `helm lint charts/tasktracker -f environments/staging/values.yaml`
-- [ ] `helm template tasktracker charts/tasktracker -f environments/dev/values.yaml | grep '^kind:' | sort | uniq -c`
-- [ ] `kind get clusters`, `kubectl get nodes`
-- [ ] `docker ps --filter name=dso202-gitops --format '{{.Names}} {{.Ports}}'` showing 30080
+
+### §3.2 tool check
+
+```
+$ docker version --format '{{.Server.Version}}'
+29.4.0
+
+$ kind version
+kind v0.32.0 go1.26.3 darwin/arm64
+
+$ kubectl version --client
+Client Version: v1.36.3
+Kustomize Version: v5.8.1
+
+$ helm version --short
+v4.3.0+gbec5b06
+
+$ git --version
+git version 2.54.0 (Apple Git-157)
+
+$ argocd version --client
+argocd: v3.6.2
+  BuildDate: ...
+  GitCommit: ...
+  GitTreeState: clean
+  GoVersion: ...
+  Compiler: gc
+  Platform: darwin/arm64
+
+$ kubeseal --version
+kubeseal version: v0.41.2
+```
+
+Drift from the brief (§3.1 pinned versions):
+
+| Component | Pinned | Installed | Note |
+|---|---|---|---|
+| `argocd` CLI | v3.5.6 | v3.6.2 | Homebrew bottle; direct v3.5.6 binary download hit HTTP/2 PROTOCOL_ERROR against github.com releases. Patch-level ahead; CLI API is stable. |
+| `kubeseal` | v0.40.0 | v0.41.2 | Homebrew bottle. CLI still speaks to the pinned controller v0.40.0 installed from the Helm chart. |
+| Argo CD server | v3.5.6 | — | Will be installed from `bootstrap/argocd` at the pinned v3.5.6, not from brew. |
+| Sealed Secrets controller | v0.40.0 | — | Will be installed from the pinned Helm chart v2.20.0, not from brew. |
+
+- [x] §3.2 tool check output
+- [x] chart contract table (in `README.md` §4) — one line per requirement
+
+### `helm lint` — both environments clean
+
+```
+$ helm lint charts/tasktracker -f environments/dev/values.yaml
+==> Linting charts/tasktracker
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+
+$ helm lint charts/tasktracker -f environments/staging/values.yaml
+==> Linting charts/tasktracker
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+```
+
+### Kinds rendered — only the six whitelisted (contract C8)
+
+```
+$ helm template tasktracker charts/tasktracker -f environments/dev/values.yaml \
+    | grep '^kind:' | sort | uniq -c
+   1 kind: ConfigMap
+   2 kind: Deployment
+   1 kind: Job
+   3 kind: Service
+   3 kind: ServiceAccount
+   1 kind: StatefulSet
+```
+
+No `Secret`, `Namespace`, `ResourceQuota`, `LimitRange`, `Role` or `RoleBinding`
+is emitted; those live in `platform/<env>/`.
+
+### Cluster up, port 30080 mapped to the new cluster
+
+```
+$ kind get clusters
+dso202-assignment-01
+dso202-assignment-02
+dso202-assignment-03
+dso202-gitops
+kind
+
+$ kubectl config current-context
+kind-dso202-gitops
+
+$ kubectl get nodes
+NAME                          STATUS   ROLES           AGE   VERSION
+dso202-gitops-control-plane   Ready    control-plane   22s   v1.36.1
+
+$ docker ps --filter name=dso202-gitops --format '{{.Names}} {{.Ports}}'
+dso202-gitops-control-plane 0.0.0.0:30080->30080/tcp, 127.0.0.1:59372->6443/tcp
+```
+
+- [x] `helm lint charts/tasktracker -f environments/dev/values.yaml`
+- [x] `helm lint charts/tasktracker -f environments/staging/values.yaml`
+- [x] `helm template tasktracker charts/tasktracker -f environments/dev/values.yaml | grep '^kind:' | sort | uniq -c`
+- [x] `kind get clusters`, `kubectl get nodes`
+- [x] `docker ps --filter name=dso202-gitops --format '{{.Names}} {{.Ports}}'` showing 30080
 
 ## Task 2 — Install Argo CD declaratively
 - [ ] `kubectl kustomize bootstrap/argocd | grep -E '^kind: (Deployment|StatefulSet)$' | sort | uniq -c`  (expect 6 Deployments, 1 StatefulSet)
