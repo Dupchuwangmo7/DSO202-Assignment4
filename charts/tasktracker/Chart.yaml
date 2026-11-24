@@ -1,0 +1,13 @@
+# Chart.yaml - identity and metadata of the chart.
+apiVersion: v2                 # chart format for Helm 3 and Helm 4
+name: task-tracker
+description: Three-tier Task Tracker (nginx frontend, Node.js API, PostgreSQL) for DSO202, delivered by Argo CD
+type: application
+version: 0.2.0                 # version of the CHART; must increase on any chart change
+appVersion: "1.0"              # version of the APPLICATION; quoted so YAML keeps it a string
+kubeVersion: ">=1.30.0-0"      # -0 also accepts pre-release Kubernetes builds
+keywords:
+  - dso202
+  - task-tracker
+maintainers:
+  - name: DSO202 student

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "task-tracker values (DSO202 Assignment 4)",
+  "type": "object",
+  "required": ["environment", "images", "existingSecret", "frontend", "backend", "database", "config", "progressDeadlineSeconds"],
+  "properties": {
+    "environment": { "enum": ["", "dev", "staging"] },
+    "existingSecret": { "type": "string", "minLength": 1 },
+    "progressDeadlineSeconds": { "type": "integer", "minimum": 30, "maximum": 600 },
+    "images": {
+      "type": "object",
+      "required": ["frontend", "backend", "database", "pullPolicy"],
+      "properties": {
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] },
+        "frontend": { "$ref": "#/$defs/image" },
+        "backend":  { "$ref": "#/$defs/image" },
+        "database": { "$ref": "#/$defs/image" }
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "required": ["replicaCount", "service"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "backendUrl": { "type": "string" },
+        "service": {
+          "type": "object",
+          "required": ["type", "port"],
+          "properties": {
+            "type": { "enum": ["NodePort", "ClusterIP"] },
+            "port": { "type": "integer" },
+            "nodePort": { "type": "integer", "minimum": 30000, "maximum": 32767 }
+          }
+        }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "required": ["replicaCount", "service"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "extraEnv": { "type": "object" },
+        "service": {
+          "type": "object",
+          "required": ["type", "port"],
+          "properties": {
+            "type": { "const": "ClusterIP" },
+            "port": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "required": ["storageSize"],
+      "properties": {
+        "storageSize": { "type": "string", "pattern": "^[0-9]+(Mi|Gi)$" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": ["dbName", "dbPort", "appPort", "corsOrigin"],
+      "properties": {
+        "dbName": { "type": "string", "minLength": 1 },
+        "dbPort": { "type": "string" },
+        "appPort": { "type": "string" },
+        "corsOrigin": { "type": "string" }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": { "enabled": { "const": false } }
+    },
+    "syncWaves": { "type": "object" },
+    "smokeTest": { "type": "object" },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" }
+  },
+  "$defs": {
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": {
+          "type": "string",
+          "description": "Only tags issued by the module tutor. 'latest' is forbidden.",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        }
+      }
+    }
+  }
+}

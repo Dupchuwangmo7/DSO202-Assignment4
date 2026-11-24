@@ -1,0 +1,27 @@
+{{- /*
+=============================================================================
+File       : charts/tasktracker/templates/configmap.yaml
+Assignment : DSO202 Assignment 4
+Descriptor : Unit I 1.2.5 - ConfigMaps
+Purpose    : Non-sensitive configuration for the backend and frontend.
+             Credentials are NOT here and NOT rendered by this chart (C3);
+             they arrive as a Secret created by the Sealed Secrets controller.
+============================================================================= */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "task-tracker.fullname" . }}-config
+  labels:
+    {{- include "task-tracker.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWaves.database | quote }}
+data:
+  # DB_HOST is the headless database Service rendered by this chart.
+  DB_HOST: {{ printf "%s-db" (include "task-tracker.fullname" .) | quote }}
+  DB_PORT: {{ .Values.config.dbPort | quote }}
+  DB_NAME: {{ .Values.config.dbName | quote }}
+  APP_PORT: {{ .Values.config.appPort | quote }}
+  CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}
+  # Same value as DB_NAME under the name the official postgres image expects.
+  POSTGRES_DB: {{ .Values.config.dbName | quote }}
+  BACKEND_URL: {{ .Values.frontend.backendUrl | quote }}

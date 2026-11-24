@@ -1,0 +1,103 @@
+# =============================================================================
+# File       : charts/tasktracker/values.yaml
+# Assignment : DSO202 Assignment 4
+# Descriptor : Unit III 3.2 (Helm values); Unit IV 4.3.1
+# Purpose    : Chart defaults only. Everything that differs between the two
+#              environments lives in environments/<env>/values.yaml, so no
+#              template ever branches on the environment name.
+# =============================================================================
+
+# Environment name. No default on purpose: `required` in _helpers.tpl stops
+# rendering until dev or staging names itself, so no object is created without
+# one. (Argo CD always supplies an environment values file.)
+environment: ""
+
+# --- C1: image repository AND tag are values, per tier. No tag is written
+# inside any template, so a release (Task 7) is a values change only. ---
+images:
+  frontend:
+    repository: sarojsanyasi/dso202-frontend
+    tag: "1.0"
+  backend:
+    repository: sarojsanyasi/dso202-backend
+    tag: "1.0"
+  database:
+    repository: sarojsanyasi/dso202-db
+    tag: "1.0"
+  # Not 'Always': Task 9 may load images into the node with `kind load`,
+  # and 'Always' would force a Docker Hub pull and defeat that.
+  pullPolicy: IfNotPresent
+
+# --- C3: the chart renders NO Secret. Pods read credentials from a Secret
+# created in the cluster by the Sealed Secrets controller (Task 4). ---
+existingSecret: tasktracker-credentials
+
+frontend:
+  replicaCount: 1
+  # --- C10: the frontend Service is a NodePort and the number is a value. ---
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30080
+  # The frontend's JavaScript runs in the BROWSER and calls this address
+  # directly; nginx does not proxy /api. With no ingress controller in this
+  # assignment the backend has no browser-reachable address, so this value
+  # must point at whatever the browser can reach (see README, "Browser access").
+  backendUrl: ""
+  resources:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits:   {cpu: 100m, memory: 128Mi}
+
+backend:
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  # --- C2: extra environment variables are a values key, so Task 7's
+  # fix-forward needs no template change. ---
+  extraEnv: {}
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits:   {cpu: 250m, memory: 256Mi}
+
+database:
+  # Deliberately not configurable: no replication is configured, so a second
+  # replica would be a separate, empty database.
+  storageSize: 1Gi
+  service:
+    port: 5432
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits:   {cpu: 250m, memory: 256Mi}
+
+# Non-sensitive configuration (rendered into a ConfigMap).
+config:
+  dbName: taskdb
+  dbPort: "5432"
+  appPort: "8080"
+  corsOrigin: "*"
+
+# --- C9: no ingress controller is installed in this assignment. ---
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+
+# --- C5: sync waves. Argo CD applies lowest first and waits for each wave to
+# become healthy, which is why readiness probes (C4) matter. ---
+syncWaves:
+  database: "0"
+  backend: "1"
+  frontend: "2"
+
+# --- C6: the Kubernetes default is 600s; a failed rollout would take ten
+# minutes to be reported Degraded, which makes Task 7 unobservable. ---
+progressDeadlineSeconds: 120
+
+smokeTest:
+  enabled: true
+  image: busybox:1.37
+  attempts: 10
+
+nameOverride: ""
+fullnameOverride: ""

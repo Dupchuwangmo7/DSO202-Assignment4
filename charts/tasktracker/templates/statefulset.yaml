@@ -1,0 +1,92 @@
+{{- /*
+=============================================================================
+File       : charts/tasktracker/templates/statefulset.yaml
+Assignment : DSO202 Assignment 4
+Descriptor : Unit II - StatefulSets; Unit IV 4.3.2 (waves), 4.3.3 (health)
+Purpose    : The database tier. A StatefulSet, not a Deployment, because it
+             needs a stable Pod name and its own volume from
+             volumeClaimTemplates. Sync wave 0: it starts before the backend.
+Note       : RollingUpdate (not OnDelete) because Argo CD does not report a
+             StatefulSet with OnDelete as Healthy, which would stall the waves.
+============================================================================= */}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "task-tracker.fullname" . }}-db
+  labels:
+    {{- include "task-tracker.labels" . | nindent 4 }}
+    tier: database
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWaves.database | quote }}
+spec:
+  serviceName: {{ include "task-tracker.fullname" . }}-db
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      {{- include "task-tracker.selectorLabels" . | nindent 6 }}
+      tier: database
+  template:
+    metadata:
+      labels:
+        {{- include "task-tracker.labels" . | nindent 8 }}
+        tier: database
+    spec:
+      serviceAccountName: {{ include "task-tracker.fullname" . }}-db
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: database
+          image: "{{ .Values.images.database.repository }}:{{ .Values.images.database.tag }}"
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "task-tracker.fullname" . }}-config
+                  key: POSTGRES_DB
+            # C3: credentials come from the Secret the Sealed Secrets
+            # controller created, never from this chart.
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_PASSWORD
+          # C4: readiness gates the wave. pg_isready returns 0 only once the
+          # server accepts connections, so the backend (wave 1) is not created
+          # until Postgres can actually be connected to.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.config.dbName }}", "-h", "127.0.0.1"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 10
+          # C7: the namespace ResourceQuota rejects containers without these.
+          resources:
+            {{- toYaml .Values.database.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.database.storageSize }}

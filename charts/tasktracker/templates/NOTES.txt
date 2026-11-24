@@ -1,0 +1,17 @@
+Release {{ .Release.Name }} (revision {{ .Release.Revision }}) in namespace {{ .Release.Namespace }}.
+Environment: {{ include "task-tracker.environment" . }}
+Images: frontend {{ .Values.images.frontend.tag }}, backend {{ .Values.images.backend.tag }}, database {{ .Values.images.database.tag }}
+
+Credentials come from the existing Secret "{{ .Values.existingSecret }}", created in
+this namespace by the Sealed Secrets controller. This chart renders no Secret.
+
+{{ if eq .Values.frontend.service.type "NodePort" -}}
+Frontend NodePort: {{ .Values.frontend.service.nodePort }}
+  dev     (30080 is mapped by the kind configuration):  http://localhost:30080
+  staging (30081 is NOT mapped):
+      kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "task-tracker.fullname" . }}-frontend 8081:{{ .Values.frontend.service.port }}
+{{- end }}
+
+The backend is ClusterIP only and has no browser-reachable address. To exercise
+the API directly:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "task-tracker.fullname" . }}-backend 8080:{{ .Values.backend.service.port }}
