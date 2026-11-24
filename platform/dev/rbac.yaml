@@ -1,0 +1,52 @@
+# =============================================================================
+# File       : platform/dev/rbac.yaml
+# Assignment : DSO202 Assignment 4 (carried over from Assignment 2)
+# Descriptor : Unit II - Kubernetes RBAC (least privilege)
+# Purpose    : Human read-only access to dso202-dev. This is KUBERNETES RBAC
+#              and is separate from Argo CD RBAC (Task 6, Q4).
+# Why here   : Chart requirement C8 - the workload chart must not render Role
+#              or RoleBinding, so the dso202 project cannot widen its own
+#              permissions. These objects are delivered by platform-dev,
+#              which belongs to the broader 'platform' project.
+# Withheld   : 'secrets' (would expose the decrypted credentials) and
+#              'pods/exec' (a shell can read a container's environment).
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: viewer-sa
+  namespace: dso202-dev
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: viewer
+  namespace: dso202-dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "persistentvolumeclaims", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: viewer-binding
+  namespace: dso202-dev
+subjects:
+  - kind: ServiceAccount
+    name: viewer-sa
+    namespace: dso202-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: viewer

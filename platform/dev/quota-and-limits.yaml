@@ -1,0 +1,35 @@
+# =============================================================================
+# File       : platform/dev/quota-and-limits.yaml
+# Assignment : DSO202 Assignment 4 (carried over from Assignment 2)
+# Descriptor : Unit I 1.5.3 - ResourceQuota and LimitRange
+# Purpose    : Bounds every Pod in dso202-dev. The quota requires requests and
+#              limits on EVERY container, which is why chart requirement C7
+#              exists and why the smoke-test Job declares resources.
+# Sizing     : Headroom for 3 tiers plus a short-lived smoke-test Pod and one
+#              surplus Pod during a rolling update.
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dso202-quota
+  namespace: dso202-dev
+spec:
+  hard:
+    pods: "8"
+    requests.cpu: "750m"
+    requests.memory: "768Mi"
+    limits.cpu: "1500m"
+    limits.memory: "1536Mi"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: dso202-limitrange
+  namespace: dso202-dev
+spec:
+  limits:
+    - type: Container
+      defaultRequest: {cpu: "50m", memory: "64Mi"}
+      default:        {cpu: "250m", memory: "256Mi"}
+      min:            {cpu: "10m", memory: "16Mi"}
+      max:            {cpu: "500m", memory: "512Mi"}
