@@ -392,14 +392,133 @@ key backup lives outside the repo)
 - [x] Q2 answered in README
 
 ## Task 5 — Deliver the workloads
-- [ ] `kubectl get applications -n argocd`  (all Synced + Healthy)
-- [ ] Pod creation order showing waves: database → backend → frontend
-- [ ] `kubectl logs job/tasktracker-smoke-test -n dso202-dev`
-- [ ] `argocd app get tasktracker-dev` and `… tasktracker-staging`
-- [ ] CRUD cycle in dev (see README §5 — port-forward the backend)
-- [ ] **screenshot**: `tasktracker-dev` resource tree → `screenshots/task5-tasktracker-dev-tree.png`
-- [ ] root Application state BEFORE and AFTER the first staging sync
-- [ ] Q3 answered in README
+
+### All six Applications Synced + Healthy after `argocd app sync tasktracker-staging`
+
+```
+$ kubectl get application -n argocd
+NAME                  SYNC     HEALTH    REVISION
+platform-dev          Synced   Healthy   5a0672c
+platform-staging      Synced   Healthy   5a0672c
+root                  Synced   Healthy   5a0672c
+sealed-secrets        Synced   Healthy   2.20.0
+tasktracker-dev       Synced   Healthy   476682a
+tasktracker-staging   Synced   Healthy   5a0672c  (= tag v1.0.0)
+```
+
+### Pod creation order matches declared waves (db=0, backend=1, frontend=2, smoke-test=PostSync)
+
+Reconstructed from pod ages immediately after the staging sync (oldest
+first). Staging was chosen for the capture because dev has been running
+since Task 4 and lost the age ordering.
+
+```
+$ kubectl get pods -n dso202-staging
+NAME                                                 AGE   WAVE
+tasktracker-task-tracker-db-0                        35s   0  (StatefulSet)
+tasktracker-task-tracker-backend-cfb776d84-bt5w8     26s   1
+tasktracker-task-tracker-frontend-7f7c5d49b8-bhwjn   20s   2
+tasktracker-smoke-test-t9q4d                         14s   PostSync (Completed)
+```
+
+### Smoke-test logs — both environments
+
+```
+$ kubectl logs job/tasktracker-smoke-test -n dso202-dev
+[{"id":1,"title":"Set up kind cluster", … },
+ {"id":2,"title":"Write namespace manifest", … },
+ {"id":3,"title":"Wire ConfigMap and Secret", … }]
+
+$ kubectl logs job/tasktracker-smoke-test -n dso202-staging
+[{"id":1, …}, {"id":2, …}, {"id":3, …}]
+```
+
+The Job reaches `tasktracker-task-tracker-backend:8080` inside the
+cluster (no port-forward needed) and gets back the three seeded tasks,
+proving the backend → db path is wired correctly.
+
+### `argocd app get` — both tasktracker Applications
+
+```
+$ argocd app get tasktracker-dev        — Synced to main (476682a), Healthy, Automated (Prune + Self-heal)
+$ argocd app get tasktracker-staging    — Synced to v1.0.0 (5a0672c), Healthy, Manual
+```
+
+### Root state — BEFORE and AFTER the first staging sync
+
+**BEFORE** (captured just before `argocd app sync tasktracker-staging`)
+
+```
+root                  Synced   Healthy      ← platform-* and dev already in
+tasktracker-staging   Unknown  Healthy      ← manual, never synced, target v1.0.0
+
+kubectl get pods -n dso202-staging
+  No resources found in dso202-staging namespace.
+```
+
+**AFTER** (26s later)
+
+```
+root                  Synced   Healthy      ← still Healthy; staging child now Synced too
+tasktracker-staging   Synced   Healthy      ← revision 5a0672c = tag v1.0.0
+
+kubectl get pods -n dso202-staging
+  tasktracker-task-tracker-db-0              1/1  Running
+  tasktracker-task-tracker-backend-…         1/1  Running
+  tasktracker-task-tracker-frontend-…        1/1  Running
+  tasktracker-smoke-test-…                   0/1  Completed
+```
+
+- [x] `kubectl get applications -n argocd`  (all Synced + Healthy)
+- [x] Pod creation order showing waves: database → backend → frontend
+- [x] `kubectl logs job/tasktracker-smoke-test -n dso202-dev`
+- [x] `argocd app get tasktracker-dev` and `… tasktracker-staging`
+### CRUD cycle via port-forwarded backend (README §5 — curl variant)
+
+```
+$ kubectl -n dso202-dev port-forward svc/tasktracker-task-tracker-backend 8080:8080 &
+$ API=http://localhost:8080/api
+
+# 1. LIST BEFORE — the three seeded tasks
+$ curl -sS $API/tasks
+  [{"id":1,"title":"Set up kind cluster", … "status":"done"},
+   {"id":2,"title":"Write namespace manifest", … "status":"in_progress"},
+   {"id":3,"title":"Wire ConfigMap and Secret", … "status":"pending"}]
+
+# 2. CREATE
+$ curl -sS -X POST $API/tasks -H 'Content-Type: application/json' \
+    --data '{"title":"Task 5 CRUD demo", …, "status":"pending"}'
+  {"id":4, "title":"Task 5 CRUD demo", "status":"pending", "created_at":"…"}
+
+# 3. READ the new one
+$ curl -sS $API/tasks/4
+  {"id":4, …, "status":"pending"}
+
+# 4. UPDATE (status -> done)
+$ curl -sS -X PUT $API/tasks/4 -H 'Content-Type: application/json' \
+    --data '{"title":"Task 5 CRUD demo", …, "status":"done"}'
+  {"id":4, …, "status":"done"}
+
+# 5. DELETE
+$ curl -o /dev/null -w 'HTTP %{http_code}\n' -X DELETE $API/tasks/4
+  HTTP 204
+
+# 6. READ deleted (should 404)
+$ curl -o /dev/null -w 'HTTP %{http_code}\n' $API/tasks/4
+  HTTP 404
+
+# 7. LIST AFTER — back to three tasks, state restored
+$ curl -sS $API/tasks | jq 'length,[.[].id]'
+  3
+  [1, 2, 3]
+```
+
+- [x] CRUD cycle in dev (see README §5 — port-forward the backend)
+- [x] **screenshot**: `tasktracker-dev` resource tree → `screenshots/task5-tasktracker-dev-tree.png`
+
+![tasktracker-dev resource tree — Synced to main (5a0672c), Healthy, auto-sync enabled; all visible children green](screenshots/task5-tasktracker-dev-tree.png)
+- [x] root Application state BEFORE and AFTER the first staging sync
+- [x] Q3 answered in README
 
 ## Task 6 — Access control for Argo CD users
 - [ ] `argocd account list`  (admin, reviewer)
