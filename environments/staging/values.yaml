@@ -36,6 +36,11 @@ frontend:
 
 backend:
   replicaCount: 1
+  # v1.1: expose the release label to the backend (see dev values for rationale).
+  # Chart change: none — contract C2 passes .Values.backend.extraEnv straight
+  # through.
+  extraEnv:
+    APP_RELEASE: "v1.1.0"
 
 database:
   storageSize: 1Gi

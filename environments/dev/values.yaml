@@ -34,6 +34,12 @@ frontend:
 
 backend:
   replicaCount: 1
+  # v1.1: expose the release label to the backend, so the smoke test and
+  # /api/status can report which release is running. The chart passes every
+  # key in .Values.backend.extraEnv straight through as an env var without any
+  # template change (contract C2).
+  extraEnv:
+    APP_RELEASE: "v1.1.0"
 
 database:
   storageSize: 1Gi
